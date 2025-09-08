@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "auth:gen": "pnpm dlx @better-auth/cli@latest generate --output ./src/server/db/authSchema.ts --config ./src/lib/auth.ts",
     "build": "next build",
     "check": "next lint && tsc --noEmit",
     "db:generate": "drizzle-kit generate",

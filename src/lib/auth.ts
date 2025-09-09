@@ -4,8 +4,7 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db } from "@/server/db";
 import { env } from "@/env";
 import { nextCookies } from "better-auth/next-js";
-import { ac, user, client, admin } from "./permissions";
-import { required } from "node_modules/zod/v4/core/util.cjs";
+import { ac, user, client, staff, admin } from "./permissions";
 
 export const auth = betterAuth({
   database: drizzleAdapter(db, {
@@ -37,10 +36,12 @@ export const auth = betterAuth({
     adminPlugin({
       ac,
       roles: {
-        admin,
         user,
+        admin,
+        staff,
         client,
       },
+      defaultRole: "user",
     }),
     nextCookies(),
   ],

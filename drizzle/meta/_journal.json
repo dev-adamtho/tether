@@ -15,6 +15,13 @@
       "when": 1757308886177,
       "tag": "0001_tricky_mockingbird",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1757374572286,
+      "tag": "0002_unique_scorpion",
+      "breakpoints": true
     }
   ]
 }

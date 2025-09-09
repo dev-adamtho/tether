@@ -6,11 +6,12 @@
  * TL;DR - This is where all the tRPC server stuff is created and plugged in. The pieces you will
  * need to use are documented accordingly near the end.
  */
-import { initTRPC } from "@trpc/server";
+import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
 
 import { db } from "@/server/db";
+import { auth } from "@/lib/auth";
 
 /**
  * 1. CONTEXT
@@ -25,8 +26,10 @@ import { db } from "@/server/db";
  * @see https://trpc.io/docs/server/context
  */
 export const createTRPCContext = async (opts: { headers: Headers }) => {
+  const authSession = await auth.api.getSession(opts);
   return {
     db,
+    authSession,
     ...opts,
   };
 };
@@ -79,22 +82,22 @@ export const createTRPCRouter = t.router;
  * You can remove this if you don't like it, but it can help catch unwanted waterfalls by simulating
  * network latency that would occur in production but not in local development.
  */
-const timingMiddleware = t.middleware(async ({ next, path }) => {
-  const start = Date.now();
+// const timingMiddleware = t.middleware(async ({ next, path }) => {
+//   const start = Date.now();
 
-  if (t._config.isDev) {
-    // artificial delay in dev
-    const waitMs = Math.floor(Math.random() * 400) + 100;
-    await new Promise((resolve) => setTimeout(resolve, waitMs));
-  }
+//   if (t._config.isDev) {
+//     // artificial delay in dev
+//     const waitMs = Math.floor(Math.random() * 400) + 100;
+//     await new Promise((resolve) => setTimeout(resolve, waitMs));
+//   }
 
-  const result = await next();
+//   const result = await next();
 
-  const end = Date.now();
-  console.log(`[TRPC] ${path} took ${end - start}ms to execute`);
+//   const end = Date.now();
+//   console.log(`[TRPC] ${path} took ${end - start}ms to execute`);
 
-  return result;
-});
+//   return result;
+// });
 
 /**
  * Public (unauthenticated) procedure
@@ -103,4 +106,34 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
  * guarantee that a user querying is authorized, but you can still access user session data if they
  * are logged in.
  */
-export const publicProcedure = t.procedure.use(timingMiddleware);
+export const publicProcedure = t.procedure;
+
+export const protectedProcedure = t.procedure.use(async ({ ctx, next }) => {
+  if (!ctx.authSession) {
+    throw new TRPCError({ code: "UNAUTHORIZED" });
+  }
+
+  return next({
+    ctx: {
+      // infers the `session` as non-nullable
+      ...ctx,
+      // session: { ...ctx.session, user: ctx.session.user },
+      authSession: ctx.authSession,
+    },
+  });
+});
+
+export const adminProcedure = protectedProcedure.use(async ({ ctx, next }) => {
+  if (ctx.authSession.user.role !== "admin") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Admin access only" });
+  }
+
+  return next({
+    ctx: {
+      // infers the `session` as non-nullable
+      ...ctx,
+      // session: { ...ctx.session, user: ctx.session.user },
+      authSession: ctx.authSession,
+    },
+  });
+});
